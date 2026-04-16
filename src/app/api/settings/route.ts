@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import clientPromise from "@/lib/mongodb";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 export const revalidate = 0;
 
+// GET Settings
 export async function GET() {
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return NextResponse.json([]);
-  }
   try {
     let settings = await prisma.settings.findFirst();
     if (!settings) {
-      // For initial creation, we still might hit the issue if we use prisma
-      // But let's try to keep GET simple and use native for POST
       return NextResponse.json({
         smsEnabled: false,
         intervals: "[]",
@@ -21,17 +17,22 @@ export async function GET() {
       });
     }
     return NextResponse.json(settings);
-  } catch (error: any) {
-    console.error('Prisma Error:', error);
-    return NextResponse.json({ 
-      error: "Failed to fetch settings", 
-      details: error.message 
-    }, { status: 500 });
+  } catch (error) {
+    console.error("GET settings error:", error);
+    return NextResponse.json({
+        smsEnabled: false,
+        intervals: "[]",
+        smsTemplate: "Tamara ##PENDING_AMOUNT## Chintanbhai ne apvana baki che, aje api desho."
+    });
   }
 }
 
+// POST Settings
 export async function POST(request: Request) {
   try {
+    // Lazy load Mongo for Vercel build compatibility
+    const { default: clientPromise } = await import("@/lib/mongodb");
+    
     const body = await request.json();
     console.log('Incoming POST /api/settings:', body);
     const { smsEnabled, intervals, smsTemplate } = body;
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     const db = client.db();
 
     const result = await db.collection("Settings").updateOne(
-      {}, // Empty filter targets the first document
+      {}, // Empty filter targets the first/only settings document
       { 
         $set: { 
           smsEnabled: smsEnabled ?? false,
@@ -51,7 +52,9 @@ export async function POST(request: Request) {
       { upsert: true }
     );
 
-    return NextResponse.json({ success: true, result });
+    const updated = await db.collection("Settings").findOne({});
+
+    return NextResponse.json({ success: true, result, settings: updated });
   } catch (error: any) {
     console.error('Settings Save Error:', error);
     return NextResponse.json({ 
