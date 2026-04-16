@@ -1,39 +1,28 @@
-/**
- * SMS Service Utility - Msg91 Implementation
- */
+import twilio from 'twilio';
 
-const authKey = process.env.MSG91_AUTH_KEY;
-const templateId = process.env.MSG91_TEMPLATE_ID;
+const accountSid = process.env.TWILIO_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
 export async function sendSMS(to: string, message: string) {
-  console.log(`[MSG91 SERVICE] Sending to ${to}: ${message}`);
+  console.log(`[TWILIO SERVICE] Sending to ${to}: ${message}`);
 
-  if (!authKey || !templateId) {
-    console.warn('[MSG91 SERVICE] Missing Auth Key or Template ID. Message not sent.');
+  if (!accountSid || !authToken || !fromPhone) {
+    console.warn('[TWILIO SERVICE] Missing Credentials. Message not sent.');
     return { success: false, error: 'Missing credentials' };
   }
 
   try {
-    // Normalizing phone number (removing + for Msg91 usually)
-    const normalizedMobile = to.replace(/[^0-9]/g, '');
-
-    const response = await fetch("https://control.msg91.com/api/v5/otp?template_id=" + templateId + "&mobile=" + normalizedMobile + "&authkey=" + authKey, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        // Msg91 Template variables (adjust based on your template)
-        "pending_amount": message // Or whatever variable you named in Msg91
-      })
+    const client = twilio(accountSid, authToken);
+    const result = await client.messages.create({
+      body: message,
+      to: to,
+      from: fromPhone
     });
-
-    const result = await response.json();
-    console.log('[MSG91 RESPONSE]', result);
     
-    return { success: result.type === 'success', result };
+    return { success: true, sid: result.sid, timestamp: new Date() };
   } catch (error: any) {
-    console.error('[MSG91 SERVICE ERROR]', error.message);
+    console.error('[TWILIO SERVICE ERROR]', error.message);
     return { success: false, error: error.message };
   }
 }
