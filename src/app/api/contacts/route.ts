@@ -1,65 +1,81 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import clientPromise from "@/lib/mongodb";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 export const revalidate = 0;
 
+// GET Contacts
 export async function GET() {
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
+  // Skip DB during Vercel build
+  if (process.env.NEXT_PHASE === "phase-production-build") {
     return NextResponse.json([]);
   }
+
   try {
     const contacts = await prisma.contact.findMany({
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
     });
+
     return NextResponse.json(contacts);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch contacts" }, { status: 500 });
+    console.error("GET contacts error:", error);
+    return NextResponse.json([]);
   }
 }
 
+// POST Contact
 export async function POST(request: Request) {
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
+  // Skip DB during build
+  if (process.env.NEXT_PHASE === "phase-production-build") {
     return NextResponse.json({ success: true });
   }
+
   try {
+    // Lazy load Mongo (important for Vercel build)
+    const { default: clientPromise } = await import("@/lib/mongodb");
+
     const body = await request.json();
-    console.log('Incoming POST /api/contacts:', body);
     const { name, phoneNumber, pendingAmount } = body;
 
     if (!phoneNumber) {
-      return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Phone number is required" },
+        { status: 400 }
+      );
     }
 
-    const contactName = name || 'Unknown';
+    const contactName = name || "Unknown";
     const amount = parseFloat(pendingAmount?.toString() || "0") || 0;
 
     const client = await clientPromise;
     const db = client.db();
 
-    // Use native driver to bypass transaction requirements (no replica set needed)
     const result = await db.collection("Contact").updateOne(
       { phoneNumber },
-      { 
-        $set: { 
-          name: contactName, 
+      {
+        $set: {
+          name: contactName,
           pendingAmount: amount,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
-        $setOnInsert: { 
-          createdAt: new Date() 
-        }
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
       },
       { upsert: true }
     );
 
     return NextResponse.json({ success: true, result });
   } catch (error: any) {
-    console.error('Contact Save Error:', error);
-    return NextResponse.json({ 
-      error: "Failed to save contact", 
-      details: error.message 
-    }, { status: 500 });
+    console.error("POST contact error:", error);
+
+    return NextResponse.json(
+      {
+        error: "Failed to save contact",
+        details: error.message,
+      },
+      { status: 500 }
+    );
   }
 }
