@@ -3,8 +3,12 @@ import { prisma } from "@/lib/prisma";
 import clientPromise from "@/lib/mongodb";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json([]);
+  }
   try {
     const contacts = await prisma.contact.findMany({
       orderBy: { updatedAt: 'desc' },
@@ -16,6 +20,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json({ success: true });
+  }
   try {
     const body = await request.json();
     console.log('Incoming POST /api/contacts:', body);

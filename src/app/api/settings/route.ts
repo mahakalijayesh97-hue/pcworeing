@@ -3,8 +3,12 @@ import { prisma } from "@/lib/prisma";
 import clientPromise from "@/lib/mongodb";
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json([]);
+  }
   try {
     let settings = await prisma.settings.findFirst();
     if (!settings) {

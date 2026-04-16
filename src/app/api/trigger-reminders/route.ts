@@ -4,7 +4,12 @@ import { sendSMS } from "@/lib/sms-service";
 
 export const dynamic = 'force-dynamic';
 
+export const revalidate = 0;
+
 export async function GET() {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json({ success: true });
+  }
   try {
     const now = new Date();
     // Get time in India (IST)
