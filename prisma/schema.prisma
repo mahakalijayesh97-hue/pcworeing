@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  phoneNumber   String   @unique
+  pendingAmount Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Settings {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  smsEnabled  Boolean  @default(false)
+  intervals   String   @default("[]")
+  smsTemplate String   @default("Tamara ##PENDING_AMOUNT## Chintanbhai ne apvana baki che, aje api desho.")
+}
