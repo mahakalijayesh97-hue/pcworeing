@@ -28,8 +28,22 @@ export async function GET() {
     }
 
     const intervals = JSON.parse(settings.intervals || '[]');
-    if (!intervals.includes(currentTime)) {
-      return NextResponse.json({ message: "No schedule for this time", currentTime });
+    
+    // Get current time in IST explicitly for comparison
+    const istNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+
+    const matched = intervals.some((timeStr: string) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      const scheduledToday = new Date(istNow);
+      scheduledToday.setHours(h, m, 0, 0);
+      
+      const diffMinutes = (istNow.getTime() - scheduledToday.getTime()) / (1000 * 60);
+      // If the scheduled time was between 0 and 6 minutes ago (safe window for 5-min cron)
+      return diffMinutes >= 0 && diffMinutes < 6;
+    });
+
+    if (!matched) {
+      return NextResponse.json({ message: "No IST schedule match in this window", currentTimeIST: currentTime, intervals });
     }
 
     const contacts = await prisma.contact.findMany({
