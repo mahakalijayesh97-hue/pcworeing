@@ -50,6 +50,9 @@ export async function GET() {
       where: { pendingAmount: { gt: 0 } }
     });
 
+
+
+    
     const results = [];
     for (const contact of contacts) {
       const message = settings.smsTemplate.replace('##PENDING_AMOUNT##', contact.pendingAmount.toString());
