@@ -11,6 +11,6 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: env("DATABASE_URL") || "mongodb://localhost:27017/pc_db",
+    url: process.env.DATABASE_URL || "mongodb://localhost:27017/pc_db",
   },
 });
