@@ -1,7 +1,7 @@
 import { MongoClient } from "mongodb";
 
 // Safety fallback for build time
-const uri = process.env.DATABASE_URL || "mongodb://localhost:27017/pc_db";
+const uri = process.env.DATABASE_URL || "mongodb+srv://jayesh:jayesh%40123@cluster0.9usafbn.mongodb.net/pc_db?retryWrites=true&w=majority&appName=Cluster0";
 const options = {};
 
 let client: MongoClient;

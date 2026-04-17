@@ -30,31 +30,34 @@ export async function GET() {
 // POST Settings
 export async function POST(request: Request) {
   try {
-    // Lazy load Mongo for Vercel build compatibility
-    const { default: clientPromise } = await import("@/lib/mongodb");
-    
     const body = await request.json();
     console.log('Incoming POST /api/settings:', body);
     const { smsEnabled, intervals, smsTemplate } = body;
 
-    const client = await clientPromise;
-    const db = client.db();
+    const currentSettings = await prisma.settings.findFirst();
+    const intervalStr = typeof intervals === 'string' ? intervals : JSON.stringify(intervals || []);
 
-    const result = await db.collection("Settings").updateOne(
-      {}, // Empty filter targets the first/only settings document
-      { 
-        $set: { 
+    let result;
+    if (currentSettings) {
+      result = await prisma.settings.update({
+        where: { id: currentSettings.id },
+        data: {
           smsEnabled: smsEnabled ?? false,
-          intervals: typeof intervals === 'string' ? intervals : JSON.stringify(intervals || []),
+          intervals: intervalStr,
           smsTemplate: smsTemplate || "" 
-        } 
-      },
-      { upsert: true }
-    );
+        }
+      });
+    } else {
+      result = await prisma.settings.create({
+        data: {
+          smsEnabled: smsEnabled ?? false,
+          intervals: intervalStr,
+          smsTemplate: smsTemplate || "" 
+        }
+      });
+    }
 
-    const updated = await db.collection("Settings").findOne({});
-
-    return NextResponse.json({ success: true, result, settings: updated });
+    return NextResponse.json({ success: true, settings: result });
   } catch (error: any) {
     console.error('Settings Save Error:', error);
     return NextResponse.json({ 

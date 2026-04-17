@@ -32,9 +32,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Lazy load Mongo (important for Vercel build)
-    const { default: clientPromise } = await import("@/lib/mongodb");
-
+    console.log('--- POST /api/contacts [PRISMA VERSION] ---');
     const body = await request.json();
     const { name, phoneNumber, pendingAmount } = body;
 
@@ -48,23 +46,18 @@ export async function POST(request: Request) {
     const contactName = name || "Unknown";
     const amount = parseFloat(pendingAmount?.toString() || "0") || 0;
 
-    const client = await clientPromise;
-    const db = client.db();
-
-    const result = await db.collection("Contact").updateOne(
-      { phoneNumber },
-      {
-        $set: {
-          name: contactName,
-          pendingAmount: amount,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: {
-          createdAt: new Date(),
-        },
+    const result = await prisma.contact.upsert({
+      where: { phoneNumber },
+      update: {
+        name: contactName,
+        pendingAmount: amount,
       },
-      { upsert: true }
-    );
+      create: {
+        name: contactName,
+        phoneNumber,
+        pendingAmount: amount,
+      },
+    });
 
     return NextResponse.json({ success: true, result });
   } catch (error: any) {
